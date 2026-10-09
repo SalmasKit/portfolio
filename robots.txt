@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://salmaskit.github.io/portfolio/sitemap.xml

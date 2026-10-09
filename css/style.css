@@ -3765,3 +3765,164 @@ body.has-back-to-top .cli-fab {
     color: var(--muted);
     font-family: monospace;
 }
+
+/* ===== CLI Retro Snake Game ===== */
+.cli-snake-wrap {
+    margin: 12px 0;
+    padding: 14px;
+    background: #0d1117;
+    border: 1.5px solid var(--accent);
+    border-radius: 12px;
+    box-shadow: 0 6px 30px rgba(0, 0, 0, 0.4), 0 0 15px rgba(99, 102, 241, 0.15);
+    display: inline-flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    max-width: 100%;
+}
+
+.cli-snake-header {
+    width: 100%;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.82rem;
+    color: var(--text);
+    padding-bottom: 6px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.cli-snake-title {
+    color: #4ade80;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.cli-snake-scores {
+    display: flex;
+    gap: 12px;
+    font-weight: 600;
+}
+
+.cli-snake-scores span b {
+    color: #facc15;
+}
+
+.cli-snake-btn-exit {
+    background: rgba(239, 68, 68, 0.2);
+    border: 1px solid #ef4444;
+    color: #ef4444;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 0.72rem;
+    cursor: pointer;
+    font-family: inherit;
+    transition: all 0.2s;
+}
+
+.cli-snake-btn-exit:hover {
+    background: #ef4444;
+    color: white;
+}
+
+.cli-snake-stage {
+    position: relative;
+    border-radius: 8px;
+    overflow: hidden;
+    border: 2px solid rgba(255, 255, 255, 0.15);
+    background: #090d13;
+}
+
+#cli-snake-canvas {
+    display: block;
+    image-rendering: pixelated;
+    background: #080c10;
+}
+
+.cli-snake-overlay {
+    position: absolute;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.82);
+    backdrop-filter: blur(2px);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    color: white;
+    font-family: 'JetBrains Mono', monospace;
+    text-align: center;
+    padding: 16px;
+}
+
+.cli-snake-overlay.hidden {
+    display: none;
+}
+
+.cli-snake-gameover-title {
+    color: #ef4444;
+    font-size: 1.25rem;
+    font-weight: 800;
+    letter-spacing: 1px;
+}
+
+.cli-snake-btn-restart {
+    background: #4ade80;
+    color: #052e16;
+    border: none;
+    font-weight: 700;
+    padding: 6px 16px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 0.8rem;
+    transition: transform 0.15s, background 0.2s;
+}
+
+.cli-snake-btn-restart:hover {
+    background: #22c55e;
+    transform: scale(1.05);
+}
+
+.cli-snake-controls-hint {
+    font-size: 0.75rem;
+    color: var(--muted);
+    font-family: monospace;
+}
+
+.cli-snake-dpad {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    margin-top: 4px;
+}
+
+.cli-snake-dpad-row {
+    display: flex;
+    gap: 6px;
+}
+
+.cli-dpad-btn {
+    width: 40px;
+    height: 34px;
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid var(--line);
+    color: var(--text);
+    border-radius: 6px;
+    font-size: 0.85rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    user-select: none;
+    transition: background 0.15s;
+}
+
+.cli-dpad-btn:active {
+    background: var(--accent);
+    color: white;
+}

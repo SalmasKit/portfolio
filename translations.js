@@ -431,6 +431,7 @@ const translations = {
         cli_help_weather: "Developer weather forecast",
         cli_help_sudo: "Attempt admin privileges",
         cli_help_ping: "Ping the portfolio server",
+        cli_help_snake: "Play retro Snake game 🐍",
         cli_jokes: [
             "Why do programmers prefer dark mode? Because light attracts bugs. 🐛",
             "A SQL query walks into a bar, walks up to two tables and asks: 'Can I join you?' 🍺",
@@ -968,6 +969,7 @@ const translations = {
         cli_help_weather: "Météo de l'espace dev",
         cli_help_sudo: "Tenter d'obtenir les droits superutilisateur",
         cli_help_ping: "Tester la latence du portfolio",
+        cli_help_snake: "Jouer au jeu Snake rétro 🐍",
         cli_jokes: [
             "Pourquoi les développeurs préfèrent-ils le mode sombre ? Parce que la lumière attire les bugs ! 🐛",
             "Une requête SQL entre dans un bar, s'approche de deux tables et demande : 'Puis-je faire une jointure avec vous ?' 🍺",

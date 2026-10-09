@@ -345,6 +345,8 @@ function initTerminal() {
         introLine.textContent = translations[document.documentElement.lang || 'en'].cli_intro;
     }
 
+    let currentSnakeGame = null;
+
     function toggleCLI(clearContent = false) {
         const isVisible = cliOverlay.classList.contains('active');
         cliOverlay.classList.toggle('active');
@@ -353,6 +355,7 @@ function initTerminal() {
             cliInput.focus();
             document.body.style.overflow = 'hidden';
         } else {
+            if (currentSnakeGame) currentSnakeGame.stop(false);
             document.body.style.overflow = '';
             if (clearContent) {
                 cliOutput.innerHTML = '';
@@ -428,7 +431,8 @@ function initTerminal() {
                 `  <span class="cli-cmd">coffee</span>           ${c.cli_help_coffee || 'Order fresh coffee'}<br>` +
                 `  <span class="cli-cmd">weather</span>          ${c.cli_help_weather || 'Dev environment forecast'}<br>` +
                 `  <span class="cli-cmd">sudo</span>             ${c.cli_help_sudo || 'Admin privilege attempt'}<br>` +
-                `  <span class="cli-cmd">ping</span>             ${c.cli_help_ping || 'Ping the portfolio server'}`;
+                `  <span class="cli-cmd">ping</span>             ${c.cli_help_ping || 'Ping the portfolio server'}<br>` +
+                `  <span class="cli-cmd">snake</span>            ${c.cli_help_snake || 'Play retro Snake game 🐍'}`;
         },
         whoami: () => translations[document.documentElement.lang || 'en'].cli_whoami,
         status: () => translations[document.documentElement.lang || 'en'].cli_status,
@@ -500,8 +504,16 @@ function initTerminal() {
             return c[projectKey] || c.cli_not_found.replace('{cmd}', escapeHtml(arg));
         },
         contact: () => translations[document.documentElement.lang || 'en'].cli_contact,
-        clear: () => { cliOutput.innerHTML = ''; return ''; },
-        exit: () => { toggleCLI(); return translations[document.documentElement.lang || 'en'].cli_exit; },
+        clear: () => { 
+            if (currentSnakeGame) currentSnakeGame.stop(false);
+            cliOutput.innerHTML = ''; 
+            return ''; 
+        },
+        exit: () => { 
+            if (currentSnakeGame) currentSnakeGame.stop(false);
+            toggleCLI(); 
+            return translations[document.documentElement.lang || 'en'].cli_exit; 
+        },
         
         // Interactive Commands
         fav: (arg) => {
@@ -624,8 +636,316 @@ function initTerminal() {
   <b>Status:</b> ${isFr ? 'À la recherche d\'un stage PFE (Janv 2027) 🎯' : 'Seeking 6-month PFE Internship (Jan 2027) 🎯'}
 </div>
 </div>`;
-        }
+        },
+        snake: () => startSnakeGame(),
+        game: () => startSnakeGame()
     };
+
+    function startSnakeGame() {
+        if (currentSnakeGame) {
+            currentSnakeGame.stop(false);
+        }
+
+        const lang = document.documentElement.lang || 'en';
+        const isFr = lang === 'fr';
+        const gameId = 'snake-' + Math.random().toString(36).substring(2, 9);
+        const savedHigh = parseInt(localStorage.getItem('cli_snake_highscore') || '0', 10);
+
+        setTimeout(() => {
+            initSnakeInstance(gameId, isFr);
+        }, 50);
+
+        return `
+<div class="cli-snake-wrap" id="${gameId}">
+  <div class="cli-snake-header">
+    <div class="cli-snake-title">🐍 DEV SNAKE RETRO</div>
+    <div class="cli-snake-scores">
+      <span>SCORE: <b class="cli-snake-score">0</b></span>
+      <span>BEST: <b class="cli-snake-high">${savedHigh}</b></span>
+    </div>
+    <button class="cli-snake-btn-exit" type="button" title="Exit Game">[X] ${isFr ? 'Quitter' : 'Exit'}</button>
+  </div>
+  <div class="cli-snake-stage">
+    <canvas id="${gameId}-canvas" width="320" height="240"></canvas>
+    <div class="cli-snake-overlay hidden">
+      <div class="cli-snake-gameover-title">GAME OVER</div>
+      <div class="cli-snake-gameover-desc">${isFr ? 'Score final' : 'Final Score'} : <b class="cli-snake-final-score">0</b></div>
+      <button class="cli-snake-btn-restart" type="button">▶ ${isFr ? 'Rejouer (Espace)' : 'Play Again (Space)'}</button>
+    </div>
+  </div>
+  <div class="cli-snake-controls-hint">
+    🎮 ${isFr ? 'Flèches / ZQSD pour diriger • Espace: Rejouer • Esc/Q: Quitter' : 'Arrow Keys / WASD to move • Space: Replay • Esc/Q: Quit'}
+  </div>
+  <div class="cli-snake-dpad">
+    <button class="cli-dpad-btn" type="button" data-dir="up">▲</button>
+    <div class="cli-snake-dpad-row">
+      <button class="cli-dpad-btn" type="button" data-dir="left">◀</button>
+      <button class="cli-dpad-btn" type="button" data-dir="down">▼</button>
+      <button class="cli-dpad-btn" type="button" data-dir="right">▶</button>
+    </div>
+  </div>
+</div>`;
+    }
+
+    function drawRoundRect(c, x, y, w, h, r) {
+        if (typeof c.roundRect === 'function') {
+            c.roundRect(x, y, w, h, r);
+        } else {
+            c.rect(x, y, w, h);
+        }
+    }
+
+    function initSnakeInstance(gameId, isFr) {
+        const wrap = document.getElementById(gameId);
+        if (!wrap) return;
+        const canvas = document.getElementById(gameId + '-canvas');
+        if (!canvas) return;
+        const ctx = canvas.getContext('2d');
+        const scoreEl = wrap.querySelector('.cli-snake-score');
+        const highEl = wrap.querySelector('.cli-snake-high');
+        const overlay = wrap.querySelector('.cli-snake-overlay');
+        const finalScoreEl = wrap.querySelector('.cli-snake-final-score');
+        const restartBtn = wrap.querySelector('.cli-snake-btn-restart');
+        const exitBtn = wrap.querySelector('.cli-snake-btn-exit');
+
+        const cols = 20;
+        const rows = 15;
+        const cellSize = 16;
+
+        let snake = [
+            { x: 6, y: 7 },
+            { x: 5, y: 7 },
+            { x: 4, y: 7 }
+        ];
+        let dir = { x: 1, y: 0 };
+        let nextDir = { x: 1, y: 0 };
+        let food = { x: 14, y: 7 };
+        let score = 0;
+        let highScore = parseInt(localStorage.getItem('cli_snake_highscore') || '0', 10);
+        let speed = 110;
+        let timer = null;
+        let isOver = false;
+
+        function spawnFood() {
+            let valid = false;
+            let newFood = { x: 0, y: 0 };
+            while (!valid) {
+                newFood.x = Math.floor(Math.random() * cols);
+                newFood.y = Math.floor(Math.random() * rows);
+                valid = !snake.some(seg => seg.x === newFood.x && seg.y === newFood.y);
+            }
+            return newFood;
+        }
+
+        function draw() {
+            ctx.fillStyle = '#080c10';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Subtle grid
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.04)';
+            ctx.lineWidth = 1;
+            for (let x = 0; x <= canvas.width; x += cellSize) {
+                ctx.beginPath();
+                ctx.moveTo(x, 0);
+                ctx.lineTo(x, canvas.height);
+                ctx.stroke();
+            }
+            for (let y = 0; y <= canvas.height; y += cellSize) {
+                ctx.beginPath();
+                ctx.moveTo(0, y);
+                ctx.lineTo(canvas.width, y);
+                ctx.stroke();
+            }
+
+            // Food (Glowing Apple / Bug)
+            const fx = food.x * cellSize + cellSize / 2;
+            const fy = food.y * cellSize + cellSize / 2;
+            const r = cellSize / 2 - 2;
+
+            ctx.shadowBlur = 8;
+            ctx.shadowColor = '#ef4444';
+            ctx.fillStyle = '#ef4444';
+            ctx.beginPath();
+            ctx.arc(fx, fy, r, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Leaf
+            ctx.shadowBlur = 0;
+            ctx.fillStyle = '#4ade80';
+            ctx.beginPath();
+            ctx.arc(fx + 2, fy - r + 1, 2.5, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Snake
+            snake.forEach((seg, i) => {
+                const sx = seg.x * cellSize;
+                const sy = seg.y * cellSize;
+                if (i === 0) {
+                    // Head
+                    ctx.shadowBlur = 8;
+                    ctx.shadowColor = '#4ade80';
+                    ctx.fillStyle = '#4ade80';
+                    ctx.beginPath();
+                    drawRoundRect(ctx, sx + 1, sy + 1, cellSize - 2, cellSize - 2, 4);
+                    ctx.fill();
+
+                    // Eyes
+                    ctx.shadowBlur = 0;
+                    ctx.fillStyle = '#052e16';
+                    let ex1 = sx + 4, ey1 = sy + 4, ex2 = sx + 10, ey2 = sy + 4;
+                    if (dir.x === 1) { ex1 = sx + 11; ey1 = sy + 4; ex2 = sx + 11; ey2 = sy + 10; }
+                    else if (dir.x === -1) { ex1 = sx + 4; ey1 = sy + 4; ex2 = sx + 4; ey2 = sy + 10; }
+                    else if (dir.y === 1) { ex1 = sx + 4; ey1 = sy + 11; ex2 = sx + 10; ey2 = sy + 11; }
+                    else if (dir.y === -1) { ex1 = sx + 4; ey1 = sy + 4; ex2 = sx + 10; ey2 = sy + 4; }
+
+                    ctx.beginPath();
+                    ctx.arc(ex1, ey1, 1.5, 0, Math.PI * 2);
+                    ctx.arc(ex2, ey2, 1.5, 0, Math.PI * 2);
+                    ctx.fill();
+                } else {
+                    // Body
+                    ctx.shadowBlur = 4;
+                    ctx.shadowColor = 'rgba(34, 197, 94, 0.4)';
+                    ctx.fillStyle = i % 2 === 0 ? '#22c55e' : '#16a34a';
+                    ctx.beginPath();
+                    drawRoundRect(ctx, sx + 2, sy + 2, cellSize - 4, cellSize - 4, 3);
+                    ctx.fill();
+                }
+            });
+            ctx.shadowBlur = 0;
+        }
+
+        function tick() {
+            if (isOver) return;
+
+            dir = nextDir;
+            const head = { x: snake[0].x + dir.x, y: snake[0].y + dir.y };
+
+            // Wall collision
+            if (head.x < 0 || head.x >= cols || head.y < 0 || head.y >= rows) {
+                gameOver();
+                return;
+            }
+
+            // Self collision
+            if (snake.some(seg => seg.x === head.x && seg.y === head.y)) {
+                gameOver();
+                return;
+            }
+
+            snake.unshift(head);
+
+            // Food collision
+            if (head.x === food.x && head.y === food.y) {
+                score += 10;
+                scoreEl.textContent = score;
+                if (score > highScore) {
+                    highScore = score;
+                    highEl.textContent = highScore;
+                    try { localStorage.setItem('cli_snake_highscore', highScore); } catch (e) {}
+                }
+                food = spawnFood();
+                if (speed > 60) {
+                    speed = Math.max(60, speed - 2);
+                    clearInterval(timer);
+                    timer = setInterval(tick, speed);
+                }
+            } else {
+                snake.pop();
+            }
+
+            draw();
+        }
+
+        function gameOver() {
+            isOver = true;
+            clearInterval(timer);
+            finalScoreEl.textContent = score;
+            overlay.classList.remove('hidden');
+        }
+
+        function reset() {
+            isOver = false;
+            snake = [
+                { x: 6, y: 7 },
+                { x: 5, y: 7 },
+                { x: 4, y: 7 }
+            ];
+            dir = { x: 1, y: 0 };
+            nextDir = { x: 1, y: 0 };
+            score = 0;
+            speed = 110;
+            scoreEl.textContent = score;
+            food = spawnFood();
+            overlay.classList.add('hidden');
+            clearInterval(timer);
+            draw();
+            timer = setInterval(tick, speed);
+        }
+
+        function onKeyDown(e) {
+            const k = e.key;
+            if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', ' '].includes(k)) {
+                e.preventDefault();
+            }
+
+            if (k === 'ArrowUp' || k === 'w' || k === 'W' || k === 'z' || k === 'Z') {
+                if (dir.y === 0) nextDir = { x: 0, y: -1 };
+            } else if (k === 'ArrowDown' || k === 's' || k === 'S') {
+                if (dir.y === 0) nextDir = { x: 0, y: 1 };
+            } else if (k === 'ArrowLeft' || k === 'a' || k === 'A') {
+                if (dir.x === 0) nextDir = { x: -1, y: 0 };
+            } else if (k === 'ArrowRight' || k === 'd' || k === 'D') {
+                if (dir.x === 0) nextDir = { x: 1, y: 0 };
+            } else if (k === ' ' && isOver) {
+                reset();
+            } else if (k === 'Escape' || k === 'q' || k === 'Q') {
+                stopGame(true);
+            }
+        }
+
+        function stopGame(appendOutput = true) {
+            clearInterval(timer);
+            window.removeEventListener('keydown', onKeyDown);
+            currentSnakeGame = null;
+
+            if (appendOutput) {
+                const outLine = document.createElement('div');
+                outLine.className = 'cli-line';
+                outLine.innerHTML = `🐍 <i>${isFr ? 'Partie terminée ! Score final :' : 'Game finished! Final score:'} <b>${score}</b></i>`;
+                cliOutput.appendChild(outLine);
+                const cliInputEl = document.getElementById('cli-input');
+                if (cliInputEl) cliInputEl.focus();
+                const cliBody = document.getElementById('cli-body');
+                if (cliBody) cliBody.scrollTop = cliBody.scrollHeight;
+            }
+        }
+
+        window.addEventListener('keydown', onKeyDown);
+        restartBtn.addEventListener('click', reset);
+        exitBtn.addEventListener('click', () => stopGame(true));
+
+        // Touch buttons
+        wrap.querySelectorAll('.cli-dpad-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const d = btn.dataset.dir;
+                if (d === 'up' && dir.y === 0) nextDir = { x: 0, y: -1 };
+                else if (d === 'down' && dir.y === 0) nextDir = { x: 0, y: 1 };
+                else if (d === 'left' && dir.x === 0) nextDir = { x: -1, y: 0 };
+                else if (d === 'right' && dir.x === 0) nextDir = { x: 1, y: 0 };
+            });
+        });
+
+        draw();
+        timer = setInterval(tick, speed);
+
+        currentSnakeGame = {
+            stop: stopGame
+        };
+
+        const cliBody = document.getElementById('cli-body');
+        if (cliBody) cliBody.scrollTop = cliBody.scrollHeight;
+    }
 
     cliInput.addEventListener('keydown', (e) => {
         if (e.key === 'Enter') {
